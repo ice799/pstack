@@ -1,0 +1,17 @@
+Mon Mar 22 19:18:20 2004  Manish Singh  <manish.singh@oracle.com>
+
+	* 0.2.0 release.
+
+	* pstack-gdb.spec.in: spec file template.
+
+	* configure.in: bump version number, generate spec file.
+
+	* Makefile: dist ChangeLog and spec.in.
+
+	* src/pstack-gdb.c: add --help and --version command line options.
+
+	* src/Makefile: define PSTACK_VERSION.
+
+Sat Mar 20 04:44:12 2004  Manish Singh  <manish.singh@oracle.com>
+
+	* Initial 0.1.0 release.

@@ -5,16 +5,18 @@ include $(TOPDIR)/Preamble.make
 SUBDIRS = src
 
 DIST_FILES = \
-	COPYING		\
-	Config.make.in	\
-	Preamble.make	\
-	Postamble.make	\
-	config.guess	\
-	config.sub	\
-	configure	\
-	configure.in	\
-	install-sh	\
-	mkinstalldirs
+	COPYING			\
+	ChangeLog		\
+	Config.make.in		\
+	Preamble.make		\
+	Postamble.make		\
+	config.guess		\
+	config.sub		\
+	configure		\
+	configure.in		\
+	install-sh		\
+	mkinstalldirs		\
+	pstack-gdb.spec.in
 
 .PHONY: dist dist-bye dist-fresh distclean
 

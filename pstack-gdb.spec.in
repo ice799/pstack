@@ -1,0 +1,47 @@
+#
+# Spec file for pstack-gdb
+#
+
+Summary: Display stack trace of a running process using GDB
+Name: pstack-gdb
+Version: @VERSION@
+Release: 1
+Copyright: GPL
+Group: Development/Debuggers
+Source: %{name}-%{version}.tar.gz
+URL: http://oss.oracle.com/projects/pstack-gdb/
+Distribution: Oracle
+Vendor: Oracle Corporation
+Packager: nobody <nobody@oracle.com>
+Requires: glib2 >= 2.2.0
+BuildRequires: glib2-devel >= 2.2.0
+BuildRoot: %{_tmppath}/%{name}-root
+
+%description
+pstack-gdb dumps a stack trace for a process, given a list of pids to dump.
+If the process is threads, a stack trace will be printed for each thread.
+It is a just a wrapper around GDB; the debugger does the real heavy lifting.
+
+%prep
+%setup -q
+
+%build
+%configure --prefix=/usr --bindir=%{_bindir} --mandir=%{_mandir}
+make
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR="$RPM_BUILD_ROOT"
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+                                                                                
+%files
+%defattr(-,root,root)
+%doc COPYING
+%{_bindir}/pstack-gdb
+#%{_mandir}/man1/*
+
+%changelog
+* Mon Mar 22 2004 Manish Singh <manish.singh@oracle.com> 0.2.0-1
+- Initial packaging

@@ -70,6 +70,9 @@ struct _App
 typedef struct _App App;
 
 
+static void        print_version          (void);
+static void        usage                  (gchar         *prgname);
+
 static GIOChannel *new_io_channel         (gint           fd);
 
 static GSList     *get_pid_list           (gint           argc,
@@ -101,6 +104,24 @@ static gboolean     process_gdb_output    (GIOChannel    *channel,
                                            GIOCondition   condition,
 					   App           *app);
 
+
+static void
+print_version (void)
+{
+  g_print ("pstack-gdb version " PSTACK_VERSION "\n");
+  g_print ("Written by Manish Singh.\n\n");
+  g_print ("Copyright (C) 2004 Oracle.\n");
+}
+
+static void
+usage (gchar *prgname)
+{
+  g_print ("Usage: %s [OPTION] pid [...]\n\n", prgname);
+  g_print ("Specify one or more pids to print a stack trace for each.\n\n");
+  g_print ("Options:\n");
+  g_print ("  -V, --version  print version information and exit\n");
+  g_print ("      --help     display this help and exit\n");
+}
 
 static GIOChannel *
 new_io_channel (gint fd)
@@ -139,7 +160,7 @@ get_pid_list (gint    argc,
 
   if (argc < 2)
     {
-      g_printerr ("No valid pids given\n");
+      g_printerr ("No valid pids given\n\n");
       return NULL;
     }
 
@@ -152,7 +173,7 @@ get_pid_list (gint    argc,
 
       if (*endptr != '\0' || pid <= 0 || pid > G_MAXINT || errno != 0)
         {
-          g_printerr ("Invalid pid: %s\n", argv[i]);
+          g_printerr ("Invalid pid: %s\n\n", argv[i]);
           g_slist_free (pids);
           return NULL;
         }
@@ -521,13 +542,37 @@ int
 main (int    argc,
       char **argv)
 {
-  App       *app;
-  GSList    *pids;
+  App    *app;
+  GSList *pids;
+  gint    i;
+
+  for (i = 1; i < argc; i++)
+    {
+      if ((strcmp (argv[i], "--version") == 0) ||
+	  (strcmp (argv[i], "-V") == 0))
+	{
+	  print_version ();
+	  exit (0);
+	}
+      else if (strcmp (argv[i], "--help") == 0)
+	{
+	  usage (argv[0]);
+	  exit (0);
+	}
+      else if (*argv[i] == '-')
+	{
+	  usage (argv[0]);
+	  exit (1);
+	}
+    }
 
   pids = get_pid_list (argc, argv);
 
   if (!pids)
-    exit (1);
+    {
+      usage (argv[0]);
+      exit (1);
+    }
 
   app = g_new0 (App, 1);
 
