@@ -30,21 +30,24 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <glib.h>
 
+#include <stdio.h>
 
 #define REAP_DELAY       1000
 #define REAP_RETRY_COUNT 5
 
 #define BUF_SIZE         1024
 
-
 typedef enum
 {
   STATE_START,
   STATE_ATTACH,
   STATE_CHECK_THREADS,
+  STATE_RB_BT,
   STATE_BACKTRACE,
   STATE_PRINT_BACKTRACE,
   STATE_DETACH,
@@ -104,7 +107,7 @@ static gboolean     process_gdb_output    (GIOChannel    *channel,
                                            GIOCondition   condition,
 					   App           *app);
 
-
+static int ruby_bt;
 static void
 print_version (void)
 {
@@ -119,6 +122,7 @@ usage (gchar *prgname)
   g_print ("Usage: %s [OPTION] pid [...]\n\n", prgname);
   g_print ("Specify one or more pids to print a stack trace for each.\n\n");
   g_print ("Options:\n");
+  g_print ("      --ruby     enabled ruby mode to print ruby level backtraces\n");
   g_print ("  -V, --version  print version information and exit\n");
   g_print ("      --help     display this help and exit\n");
 }
@@ -428,6 +432,8 @@ process_gdb_output (GIOChannel   *channel,
   gchar **lines;
   gint    pid = -1;
   gchar  *buf;
+  struct stat statbuf;
+  int ruby_macros_fd = -1;
 
   if (condition & G_IO_ERR || condition & G_IO_HUP)
     return FALSE;
@@ -448,6 +454,29 @@ process_gdb_output (GIOChannel   *channel,
       buf = "define pstack_thread\nthread $arg0\nbacktrace\nend\n";
       send_command (buf, app);
 
+      /* XXX: In the future, let the user specify where their ruby gdb macros live.
+       *      until then, check two normal places.
+       */
+      if (stat("/usr/share/gdb/ruby", &statbuf) == 0)
+        ruby_macros_fd = open("/usr/share/gdb/ruby", O_RDONLY);
+      else if (stat("/usr/local/share/gdb/ruby", &statbuf) == 0)
+        ruby_macros_fd = open("/usr/local/share/gdb/ruby", O_RDONLY);
+
+      if (ruby_macros_fd > -1) {
+        char *ruby_macros = mmap(NULL, statbuf.st_size+2, PROT_READ|PROT_WRITE, MAP_PRIVATE, ruby_macros_fd, 0);
+        if (ruby_macros != MAP_FAILED) {
+          ruby_macros[statbuf.st_size-1] = '\n';
+          ruby_macros[statbuf.st_size] = '\0';
+          send_command (ruby_macros, app);
+        } else {
+          fprintf(stderr, "WARNING: Unable to mmap file ruby macro file, error: %s\n", strerror(errno));
+          fprintf(stderr, "Checked /usr/share/gdb/ruby and /usr/local/share/gdb/ruby - where'd you put your macros?\n");
+        }
+      } else if (ruby_macros_fd == -1) {
+        fprintf(stderr, "Couldn't open ruby macro file, error: %s\n", strerror(errno));
+        fprintf(stderr, "Checked /usr/share/gdb/ruby and /usr/local/share/gdb/ruby - where'd you put your macros?\n");
+      }
+
       app->state = STATE_ATTACH;
 
       break;
@@ -457,8 +486,16 @@ process_gdb_output (GIOChannel   *channel,
       send_command (buf, app);
       g_free (buf);
 
-      app->state = STATE_CHECK_THREADS;
+      if (ruby_bt)
+        app->state = STATE_RB_BT;
+      else
+        app->state = STATE_CHECK_THREADS;
 
+      break;
+
+    case STATE_RB_BT:
+      send_command ("rb_backtrace\n", app);
+      app->state = STATE_DETACH;
       break;
 
     case STATE_CHECK_THREADS:
@@ -523,7 +560,7 @@ process_gdb_output (GIOChannel   *channel,
       g_slist_free (app->threads);
       app->threads = NULL;
 
-      app->pids = app->pids->next;
+     app->pids = app->pids->next;
       app->state = STATE_ATTACH;
 
       break;
@@ -543,7 +580,7 @@ main (int    argc,
       char **argv)
 {
   App    *app;
-  GSList *pids;
+  GSList *pids = NULL;
   gint    i;
 
   for (i = 1; i < argc; i++)
@@ -559,6 +596,23 @@ main (int    argc,
 	  usage (argv[0]);
 	  exit (0);
 	}
+      else if (strcmp (argv[i], "--ruby") == 0)
+      {
+        ruby_bt = 1;
+
+        gint   pid;
+        gchar *endptr;
+
+        pid = strtoul (argv[i+1], &endptr, 10);
+
+        if (*endptr != '\0' || pid <= 0 || pid > G_MAXINT || errno != 0) {
+            g_printerr ("Invalid pid: %s\n\n", argv[i+1]);
+            usage (argv[0]);
+            exit (1);
+        }
+
+        pids = g_slist_prepend (pids, GINT_TO_POINTER (pid));
+      }
       else if (*argv[i] == '-')
 	{
 	  usage (argv[0]);
@@ -566,7 +620,8 @@ main (int    argc,
 	}
     }
 
-  pids = get_pid_list (argc, argv);
+  if (!ruby_bt)
+          pids = get_pid_list (argc, argv);
 
   if (!pids)
     {

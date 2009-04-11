@@ -3,6 +3,7 @@ TOPDIR = ..
 include $(TOPDIR)/Preamble.make
 
 BIN_PROGRAMS = pstack-gdb
+SHARED_DATA = ruby
 
 INCLUDES = $(GLIB_CFLAGS)
 

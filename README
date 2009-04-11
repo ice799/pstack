@@ -1,0 +1,56 @@
+pstatck
+=======
+
+Ruby backtrace additions by Joe Damato (ice799)
+  - http://timetobleed.com
+  - http://github.com/ice799
+  - ice799@gmail.com
+
+
+How to build pstack
+===================
+cd /path/to/pstack-source
+autconf
+./configure
+make
+sudo make install
+
+
+How to use ruby backtrace
+=========================
+
+After you've built and installed pstrack simply:
+
+pstack-gdb --ruby <pid-of-ruby-process>
+
+Your ruby process will then output a stack trace. For example:
+
+-- 11.04.2009 16:10:25
+       from /home/joe/test2.rb:14:in `write'
+       from /home/joe/test2.rb:14:in `puts'
+       from /home/joe/test2.rb:14:in `ok'
+       from /home/joe/test2.rb:16:in `ok'
+       from /home/joe/test2.rb:27
+       from /home/joe/test2.rb:27:in `times'
+       from /home/joe/test2.rb:27
+
+
+OPTIONAL but STRONGLY RECOMMENDED
+=================================
+
+Included with the source is a patch, rb_backtrace.patch, which applies to ruby-1.8.7_p72 to allow
+backtraces to be output to a file instead of stdout. This is useful if your application does lots of
+logging, or it needs stdout for something else.
+
+To use the patch simply:
+cd ruby-187-p72-src/
+patch -p1 < /path/to/pstack/rb_backtrace.patch
+
+And then configure, make, and make install ruby like normal.
+
+You can then set the RUBY_BACKTRACE_FILE environment variable to a file, and backtraces wil be
+written to that file. For example:
+
+RUBY_BACKTRACE_FILE=/tmp/my-backtrace ruby my-application.rb
+
+The backtrace will be written to /tmp/my-backtrace.PID

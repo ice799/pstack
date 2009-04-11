@@ -59,12 +59,20 @@ all-rules: subdirs $(LIBRARIES) $(BIN_PROGRAMS) $(SBIN_PROGRAMS) $(MODULES) $(MA
 
 INSTALL_SUBDIRS = $(addsuffix -install,$(SUBDIRS))
 
-.PHONY: install-rules install-subdirs $(INSTALL_RULES) install-bin-programs install-bin-extra install-sbin-programs install-sbin-extra
+.PHONY: install-rules install-subdirs $(INSTALL_RULES) install-bin-programs install-bin-extra install-sbin-programs install-sbin-extra install-shared-data
 
 install-subdirs: $(INSTALL_SUBDIRS)
 
 $(INSTALL_SUBDIRS):
 	$(MAKE) -C $(subst -install,,$@) install
+
+install-shared-data: $(SHARED_DATA)
+ifdef SHARED_DATA
+	$(SHELL) $(TOPDIR)/mkinstalldirs $(DESTDIR)$(datadir)/gdb
+	for prog in $(SHARED_DATA); do \
+	  $(INSTALL_PROGRAM) -m 444 $$prog $(DESTDIR)$(datadir)/gdb/$$prog; \
+	done
+endif
 
 install-bin-programs: $(BIN_PROGRAMS)
 ifdef BIN_PROGRAMS
@@ -108,7 +116,7 @@ ifdef MANS
 	done
 endif
 
-install-rules: install-subdirs $(INSTALL_RULES) install-bin-programs install-bin-extra install-sbin-programs install-sbin-extra install-mans
+install-rules: install-subdirs $(INSTALL_RULES) install-bin-programs install-bin-extra install-sbin-programs install-sbin-extra install-mans install-shared-data
 
 
 CLEAN_SUBDIRS = $(addsuffix -clean,$(SUBDIRS))

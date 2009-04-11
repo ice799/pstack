@@ -1,0 +1,96 @@
+diff --git a/eval.c b/eval.c
+index 11264f7..5fe11e5 100644
+--- a/eval.c
++++ b/eval.c
+@@ -29,6 +29,7 @@
+ #endif
+ 
+ #include <stdio.h>
++#include <time.h>
+ 
+ #include "st.h"
+ #include "dln.h"
+@@ -748,6 +749,8 @@ extern int ruby_nerrs;
+ VALUE rb_eLocalJumpError;
+ VALUE rb_eSysStackError;
+ 
++static FILE *rb_backtrace_file;
++
+ extern VALUE ruby_top_self;
+ 
+ struct FRAME *ruby_frame;
+@@ -1627,6 +1630,25 @@ ruby_cleanup(ex)
+ 
+     return ex;
+ }
++static void
++ruby_set_parameters()
++{
++    char *backtrace_file = NULL;
++    backtrace_file = getenv("RUBY_BACKTRACE_FILE");
++    if (backtrace_file != NULL) {
++      char *filename;
++      asprintf(&filename, "%s.%ld", backtrace_file, (long int)(getpid()));
++      FILE *file = fopen(filename, "w");
++      if (file != NULL) {
++        rb_backtrace_file = file;
++      }
++      else {
++        fprintf(stderr, "can't open backtrace file: %s, using stderr\n", backtrace_file);
++        rb_backtrace_file = stderr;
++      }
++      free(filename);
++    }
++}
+ 
+ static int
+ ruby_exec_internal()
+@@ -1649,6 +1671,7 @@ void
+ ruby_stop(ex)
+     int ex;
+ {
++    fclose(rb_backtrace_file);
+     exit(ruby_cleanup(ex));
+ }
+ 
+@@ -1658,6 +1681,7 @@ ruby_exec()
+     volatile NODE *tmp;
+ 
+     Init_stack((void*)&tmp);
++    ruby_set_parameters();
+     return ruby_exec_internal();
+ }
+ 
+@@ -6420,6 +6444,19 @@ rb_f_caller(argc, argv)
+     return backtrace(lev);
+ }
+ 
++static void
++ruby_print_time(FILE *fp)
++{
++   struct tm *tmp;
++   time_t t;
++
++   t = time(NULL);
++   tmp = localtime(&t);
++   fprintf(fp, "-- %02d.%02d.%04d %02d:%02d:%02d\n",
++     tmp->tm_mday, tmp->tm_mon+1, tmp->tm_year+1900,
++     tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
++}
++
+ void
+ rb_backtrace()
+ {
+@@ -6427,9 +6464,11 @@ rb_backtrace()
+     VALUE ary;
+ 
+     ary = backtrace(-1);
++    ruby_print_time(rb_backtrace_file);
+     for (i=0; i<RARRAY(ary)->len; i++) {
+-	printf("\tfrom %s\n", RSTRING(RARRAY(ary)->ptr[i])->ptr);
++	    fprintf(rb_backtrace_file, "\tfrom %s\n", RSTRING(RARRAY(ary)->ptr[i])->ptr);
+     }
++    fflush(rb_backtrace_file);
+ }
+ 
+ static VALUE
