@@ -1,5 +1,5 @@
 diff --git a/eval.c b/eval.c
-index 11264f7..5fe11e5 100644
+index 11264f7..e2f9687 100644
 --- a/eval.c
 +++ b/eval.c
 @@ -29,6 +29,7 @@
@@ -19,7 +19,7 @@ index 11264f7..5fe11e5 100644
  extern VALUE ruby_top_self;
  
  struct FRAME *ruby_frame;
-@@ -1627,6 +1630,25 @@ ruby_cleanup(ex)
+@@ -1627,6 +1630,28 @@ ruby_cleanup(ex)
  
      return ex;
  }
@@ -27,6 +27,9 @@ index 11264f7..5fe11e5 100644
 +ruby_set_parameters()
 +{
 +    char *backtrace_file = NULL;
++
++    rb_backtrace_file = stderr;
++
 +    backtrace_file = getenv("RUBY_BACKTRACE_FILE");
 +    if (backtrace_file != NULL) {
 +      char *filename;
@@ -45,7 +48,7 @@ index 11264f7..5fe11e5 100644
  
  static int
  ruby_exec_internal()
-@@ -1649,6 +1671,7 @@ void
+@@ -1649,6 +1674,7 @@ void
  ruby_stop(ex)
      int ex;
  {
@@ -53,7 +56,7 @@ index 11264f7..5fe11e5 100644
      exit(ruby_cleanup(ex));
  }
  
-@@ -1658,6 +1681,7 @@ ruby_exec()
+@@ -1658,6 +1684,7 @@ ruby_exec()
      volatile NODE *tmp;
  
      Init_stack((void*)&tmp);
@@ -61,7 +64,7 @@ index 11264f7..5fe11e5 100644
      return ruby_exec_internal();
  }
  
-@@ -6420,6 +6444,19 @@ rb_f_caller(argc, argv)
+@@ -6420,6 +6447,19 @@ rb_f_caller(argc, argv)
      return backtrace(lev);
  }
  
@@ -81,7 +84,7 @@ index 11264f7..5fe11e5 100644
  void
  rb_backtrace()
  {
-@@ -6427,9 +6464,11 @@ rb_backtrace()
+@@ -6427,9 +6467,11 @@ rb_backtrace()
      VALUE ary;
  
      ary = backtrace(-1);
